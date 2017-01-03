@@ -1,6 +1,6 @@
 # Hey Emacs, this is a -*- makefile -*-
 #----------------------------------------------------------------------------
-# WinAVR Makefile Template written by Eric B. Weddington, Jörg Wunsch, et al.
+# WinAVR Makefile Template written by Eric B. Weddington, Jï¿½rg Wunsch, et al.
 #
 # Released to the Public Domain
 #
@@ -61,11 +61,9 @@ TARGET = wake-on-shake
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC = 	Wake-on-Shake.c
-SRC +=  ui.c
 SRC +=  serial.c
 SRC +=  interrupts.c
 SRC +=  ADXL362.c
-SRC +=  eeprom.c
 SRC +=  spi.c
 		
 
@@ -204,9 +202,10 @@ LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
 #
 # Type: avrdude -c ?
 # to get a full listing.
-AVRDUDE_PROGRAMMER = avrispmkii
+#AVRDUDE_PROGRAMMER = avrispmkii
 #AVRDUDE_PROGRAMMER = jtag2isp
 #AVRDUDE_PROGRAMMER = ponyser
+AVRDUDE_PROGRAMMER = dragon_isp
 
 # com1 = serial port. Use lpt1 to connect to parallel port.
 AVRDUDE_PORT = usb
