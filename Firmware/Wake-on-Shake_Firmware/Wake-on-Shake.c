@@ -41,6 +41,7 @@ static void apply_brakes(void)
 {
     // High duty cycle (brake lights on full)
     OCR0A = 250;
+    OCR1AL = 250;
     serialWrite("brakes on");
 }
 
@@ -48,6 +49,7 @@ static void release_brakes(void)
 {
     // low duty cycle (brake lights dim)
     OCR0A = 10;
+    OCR1AL = 10;
     serialWrite("brakes off");
 }
 
@@ -105,6 +107,10 @@ static void setup_timers(void)
     // Using fast PWM
     TCCR0A = (1 << COM0A1) | (1 << WGM01) | (1 << WGM00);
     TCCR0B = (1 << CS01);
+
+    TCCR1A = (1 << COM1A1) | (1 << WGM10);
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+    OCR1AH = 0;
 }
 
 void _init_MCU(void) __attribute__((naked)) __attribute__((section(".init3")));
