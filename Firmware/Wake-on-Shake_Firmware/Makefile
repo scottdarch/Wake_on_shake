@@ -65,7 +65,7 @@ SRC +=  serial.c
 SRC +=  interrupts.c
 SRC +=  ADXL362.c
 SRC +=  spi.c
-		
+SRC +=  Firmware.c		
 
 
 # List Assembler source files here.

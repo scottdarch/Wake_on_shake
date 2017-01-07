@@ -1,0 +1,11 @@
+GeneratorModel for yakindu::c {
+
+    statechart firmware {
+
+        feature Outlet {
+            targetProject = "Wake-on-Shake_Firmware"
+            targetFolder = ""
+            libraryTargetFolder = ""
+        }
+    }
+}

@@ -8,13 +8,31 @@ is that you include attribution of 'Based on Wake-on-Shake by SparkFun'.
 
 Original wake-on-shake concept by Nitzan Gadish, Analog Devices
 
-Modified/simplified to create brake lights for my son's pinewood derby car.
+Copyright 2017 Scott A Dixon
+
+Modified to create lights for my son's pinewood derby car with simulated, working
+brake lights.
 
 ******************************************************************************/
-// avrdude programming string
-// avrdude -p t2313 -B 10 -P usb -c avrispmkii -U flash:w:Wake-on-Shake.hex -U hfuse:w:0xdf:m -U
-// lfuse:w:0x64:m
+/*
+                           ATTiny 2313A
+                             +-----+
+                         PA2 |     | VCC
+                   RX -> PD0 |     | PB7 -> ADXL SCK
+                   TX <- PD1 |     | PB6 -> ADXL MOSI
+                   (n/c) PA1 |     | PB5 <- ADXL MISO
+                   (n/c) PA0 |     | PB4 -> ADXL !CS
+                 INT0 -> PD2 |     | PB3/OC1A -> Brake Light PWM
+            ADXL INT1 -> PD3 |     | PB2/OC0A -> Brake Light PWM
+    HeadLights Mosfet <- PD4 |     | PB1 (GPIO, not used)
+                   (n/c) PD5 |     | PB0 <- button
+                         GND |     | PD6 (GPIO, not used)
+                             +-----+
 
+ */
+
+// +---------------------------------------------------------------------------+
+#include <stdint.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
@@ -25,43 +43,89 @@ Modified/simplified to create brake lights for my son's pinewood derby car.
 #include "spi.h"
 #include "ADXL362.h"
 #include "xl362.h"
+#include "FirmwareRequired.h"
 
 // +---------------------------------------------------------------------------+
 // | EXTERN DATA
 // +---------------------------------------------------------------------------+
 
 volatile uint8_t serialRxData = 0; // Data passing variable to get data
-                                   //   from the receive ISR back to main.
+                                   // from the receive ISR back to main.
 
 // +---------------------------------------------------------------------------+
-// | CONTROL FUNCTIONS
+// | CAR
 // +---------------------------------------------------------------------------+
-
-static void apply_brakes(void)
+static void taillights_bright(void)
 {
     // High duty cycle (brake lights on full)
     OCR0A = 250;
     OCR1AL = 250;
-    serialWrite("brakes on");
 }
 
-static void release_brakes(void)
+static void taillights_dim(void)
 {
     // low duty cycle (brake lights dim)
     OCR0A = 10;
     OCR1AL = 10;
-    serialWrite("brakes off");
 }
 
-static void turn_on_headlights(void)
+static void taillights_off(void)
+{
+    // TODO:
+}
+
+static void headlights_on(void)
 {
     PORTD |= (1 << PD4);
 }
 
-// static void turn_off_headlights(void)
-//{
-//    PORTD &= !(1 << PD4);
-//}
+static void headlights_off(void)
+{
+    PORTD &= !(1 << PD4);
+}
+
+// +---------------------------------------------------------------------------+
+// | STATE MACHINE
+// +---------------------------------------------------------------------------+
+
+static Firmware _sc_firmware;
+
+// +---------------------------------------------------------------------------+
+// | BUTTON
+// +---------------------------------------------------------------------------+
+#define BUTTON_DOWN_MASK 0xFFF
+#define BUTTON_LONG_PRESS_MASK 0xFFFFFFFF
+
+static uint16_t _button_state = 0;
+static uint32_t _long_click_state = 0;
+static bool _is_button_down = false;
+static bool _is_button_long_pressed = false;
+
+static void _update_button_state(void)
+{
+    _button_state = (_button_state << 1) | (PINB & (1 << PINB0)) ? 1 : 0;
+    if (!_is_button_down && (_button_state & BUTTON_DOWN_MASK) == BUTTON_DOWN_MASK) {
+        _is_button_down = true;
+    } else if (_is_button_down) {
+        if ((_button_state & BUTTON_DOWN_MASK) == 0) {
+            // button is now up.
+            _is_button_down = false;
+            if (!_is_button_long_pressed) {
+                serialWrite("click");
+                firmwareIfaceHMI_raise_button_click(&_sc_firmware);
+            } else {
+                _is_button_long_pressed = false;
+            }
+        } else if (!_is_button_long_pressed) {
+            _long_click_state = (_long_click_state << 1) | 1;
+            if ((_long_click_state & BUTTON_LONG_PRESS_MASK) == BUTTON_LONG_PRESS_MASK) {
+                _is_button_long_pressed = true;
+                serialWrite("long-press");
+                firmwareIfaceHMI_raise_button_long_press(&_sc_firmware);
+            }
+        }
+    }
+}
 
 // +---------------------------------------------------------------------------+
 // | INIT
@@ -71,27 +135,33 @@ static void setup_gpio(void)
     // Port A- both pins are unused, so we'll make them both outputs and drive them
     //   low to save power.
     DDRA = (1 << PA1) | (1 << PA0);
-    // Port B- PB0-3 are unused; make them outputs and tie them low. PB4 is !CS
-    //   for the ADXL362, so it should be an output. PB5 is MISO from the ADXL362, so
-    //   leave it an input. PB6 is MOSI to ADXL362, and PB7 is SCK, so they should be
-    //   outputs.
-    DDRB = (1 << PB7) | (1 << PB6) | (1 << PB4) | (1 << PB3) | (1 << PB2) | (1 << PB1) | (1 << PB0);
-    // No port C pins on this chip
-    // Port D- PD0 is the serial receive input. PD1 is serial transmit output. PD2 is
-    //   is an external interrupt used to wake the processor on serial activity. PD3
-    //   is the interrupt from the ADXL362, used to wake the device on detected
-    //   motion. PD4 is the MOSFET turn-on signal, so should be an output. PD5 and
-    //   PD6 are unused; make them outputs and tie them low. PD7 doesn't exist.
-    DDRD = (1 << PD6) | (1 << PD5) | (1 << PD4) | (1 << PD1);
 
-    // Now let's configure some initial IO states
+    // Port B- PB1-3 are either unused or outputs; make them outputs and tie them
+    //   low.
+    //   PB0 is input for for the multi-function button.
+    //   PB4 is !CS for the ADXL362, so it should be an output.
+    //   PB5 is MISO from the ADXL362, so leave it as input.
+    //   PB6 is MOSI to ADXL362 set as output
+    //   PB7 is SCK to ADXL362 set as output
+    DDRB = (1 << PB7) | (1 << PB6) | (1 << PB4) | (1 << PB3) | (1 << PB2) | (1 << PB1);
+
+    // Port D- PD0 is the serial receive input.
+    //         PD1 is serial transmit output.
+    //         PD2 is an external interrupt used to wake the processor on serial
+    //             activity.
+    //         PD3 is the interrupt from the ADXL362, used to wake the device on
+    //             detected motion.
+    //         PD4 is the MOSFET turn-on signal, so should be an output. PD5 and
+    //         PD6 is unused.
+    DDRD = (1 << PD6) | (1 << PD5) | (1 << PD4) | (1 << PD1);
 
     // Port A- both set low to reduce current consumption
     PORTA = (0 << PA1) | (0 << PA0);
-    // Port B- PB0-3 should be low for power consumption; PB4 is !CS, so bring it
+
+    // Port B- PB1-3 should be low for power consumption; PB4 is !CS, so bring it
     //   high to keep the ADXL362 non-selected. Others are don't care.
-    PORTB = (1 << PB4) | (0 << PB3) | (0 << PB2) | (0 << PB1) | (0 << PB0);
-    // Port C doesn't exist
+    PORTB = (1 << PB4) | (0 << PB3) | (0 << PB2) | (0 << PB1);
+
     // Port D- PD5 and PD6 should be tied low; others are (for now) don't care.
     //   Also, PD2/PD0 should be made high to enable pullup resistor for when no
     //   serial connection is present.
@@ -130,6 +200,8 @@ void _init_peripherals(void)
 {
     ADXLConfig();
     serialWrite("periph. init");
+
+    firmware_init(&_sc_firmware);
 }
 
 // +---------------------------------------------------------------------------+
@@ -137,31 +209,67 @@ void _init_peripherals(void)
 // +---------------------------------------------------------------------------+
 int main(void)
 {
-    static bool was_awake = true;
+    firmware_enter(&_sc_firmware);
 
     serialWrite("ready");
-    apply_brakes();
-    turn_on_headlights();
 
     sei();
 
     while (1) {
-        if (!ADXLIsAwake()) {
-            was_awake = false;
-            serialWrite("zzzzzz"); // Let the user know sleep mode is coming.
+        _update_button_state();
+        firmwareIfaceCar_set_brakes_on(&_sc_firmware, !ADXLIsAwake());
+        firmware_runCycle(&_sc_firmware);
 
-            enable_external_interrupts();
-
-            apply_brakes();
-            sleep_mode(); // Go to sleep until woken by an interrupt.
-            release_brakes();
-        } else if (!was_awake) {
-            was_awake = true;
-            serialWrite("Wha? Oh. I'm up.");
-        } else {
-            for (uint8_t i = 0; i < 255; ++i) {
-                _NOP();
-            }
+        // TODO: remove me
+        for (uint8_t i = 0; i < 255; ++i) {
+            _NOP();
         }
     }
+
+    firmware_exit(&_sc_firmware);
+}
+
+// +---------------------------------------------------------------------------+
+// | FirmwareRequired
+// +---------------------------------------------------------------------------+
+void firmwareIfaceMCU_wait_for_interrupt(const Firmware *handle)
+{
+    enable_external_interrupts();
+    sleep_mode();
+    disable_external_interrupts();
+}
+
+void firmwareIfaceHeadLights_on(const Firmware *handle)
+{
+    headlights_on();
+}
+
+void firmwareIfaceHeadLights_off(const Firmware *handle)
+{
+    headlights_off();
+}
+
+void firmwareIfaceTailLights_bright(const Firmware *handle)
+{
+    taillights_bright();
+}
+
+void firmwareIfaceTailLights_dim(const Firmware *handle)
+{
+    taillights_dim();
+}
+
+void firmwareIfaceTailLights_off(const Firmware *handle)
+{
+    taillights_off();
+}
+
+void firmwareIfaceCar_start_car(const Firmware *handle)
+{
+    // TODO: enable ADXL
+}
+
+void firmwareIfaceCar_stop_car(const Firmware *handle)
+{
+    // TODO: disable ADXL
 }
