@@ -58,6 +58,7 @@ static void taillights_bright(void)
 {
     // High duty cycle (brake lights on full)
     OCR0A = 250;
+    OCR1AH = 0;
     OCR1AL = 250;
 }
 
@@ -65,6 +66,7 @@ static void taillights_dim(void)
 {
     // low duty cycle (brake lights dim)
     OCR0A = 10;
+    OCR1AH = 0;
     OCR1AL = 10;
 }
 
@@ -99,7 +101,7 @@ static Firmware _sc_firmware;
 // +---------------------------------------------------------------------------+
 #define BUTTON_DOWN_MASK 0xFFF
 #define BUTTON_LONG_PRESS_MASK 0xFFFFFFFF
-#define BUTTON_LONG_PRESS_COUNT 8
+#define BUTTON_LONG_PRESS_COUNT 32
 #define BUTTON_PORT PIND
 #define BUTTON_PIN PIND0
 
@@ -182,30 +184,27 @@ static void setup_gpio(void)
 
 static void start_timers(void)
 {
-    TCCR0B |= (1 << CS01);
-    TCCR1B |= (1 << CS11);
-    _NOP();
-}
-
-static void stop_timers(void)
-{
-    TCCR0B &= ~((1 << CS02) | (1 << CS01) | (1 << CS00));
-    TCCR1B &= ~((1 << CS12) | (1 << CS11) | (1 << CS10));
-    _NOP();
-}
-
-static void setup_timers(void)
-{
     // +--[TIMER 0]------------------------------------------------------------+
     // Timer0 is setup to provide an 8% duty cycle at 490Hz when enabled. This
     // is used as the "brake off" current sent to the brake lights.
 
     // Using fast PWM
     TCCR0A = (1 << COM0A1) | (1 << WGM01) | (1 << WGM00);
+    TCCR0B = (1 << CS01);
 
     TCCR1A = (1 << COM1A1) | (1 << WGM10);
-    TCCR1B = (1 << WGM12);
-    OCR1AH = 0;
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+
+    _NOP();
+}
+
+static void stop_timers(void)
+{
+    TCCR0A = 0;
+    TCCR0B = 0;
+    TCCR1A = 0;
+    TCCR1B = 0;
+    _NOP();
 }
 
 void _init_MCU(void) __attribute__((naked)) __attribute__((section(".init3")));
@@ -215,8 +214,7 @@ void _init_MCU(void)
     setup_gpio();
     setup_interrupts();
     // setup_usi();
-    setup_timers();
-    set_sleep_mode(SLEEP_MODE_IDLE);
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 void _init_peripherals(void) __attribute__((naked)) __attribute__((section(".init8")));
@@ -250,11 +248,6 @@ int main(void)
             firmwareIfaceCar_set_brakes_on(&_sc_firmware, true);
         }
         firmware_runCycle(&_sc_firmware);
-
-        // TODO: remove me
-        for (uint8_t i = 0; i < 255; ++i) {
-            _NOP();
-        }
     }
 
     firmware_exit(&_sc_firmware);

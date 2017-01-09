@@ -8,7 +8,7 @@
       <vertices xsi:type="sgraph:State" xmi:id="_nEGjUNUMEea00YxYeAT_QQ" specification="oncycle/ MCU.wait_for_interrupt()" name="idle" incomingTransitions="_nEK0wNUMEea00YxYeAT_QQ _ycOKwNUPEea00YxYeAT_QQ _R_b10NYAEea12LFRB5STwg">
         <outgoingTransitions xmi:id="_3aCP8NUMEea00YxYeAT_QQ" specification="HMI.button_click" target="_07fJ4NUMEea00YxYeAT_QQ"/>
       </vertices>
-      <vertices xsi:type="sgraph:State" xmi:id="_07fJ4NUMEea00YxYeAT_QQ" specification="entry/ Car.start_car()&#xA;oncycle/ MCU.wait_for_interrupt()&#xA;exit/ Car.stop_car()" name="running" incomingTransitions="_3aCP8NUMEea00YxYeAT_QQ">
+      <vertices xsi:type="sgraph:State" xmi:id="_07fJ4NUMEea00YxYeAT_QQ" specification="entry/ Car.start_car()&#xA;exit/ Car.stop_car()" name="running" incomingTransitions="_3aCP8NUMEea00YxYeAT_QQ">
         <outgoingTransitions xmi:id="_ycOKwNUPEea00YxYeAT_QQ" specification="HMI.button_long_press" target="_nEGjUNUMEea00YxYeAT_QQ"/>
         <outgoingTransitions xmi:id="_W1AdoNYAEea12LFRB5STwg" specification="MCU.error" target="_PlnewNYAEea12LFRB5STwg"/>
         <regions xmi:id="_EAA5ANUNEea00YxYeAT_QQ" name="headlights">
