@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xmi:XMI xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:notation="http://www.eclipse.org/gmf/runtime/1.0.2/notation" xmlns:sgraph="http://www.yakindu.org/sct/sgraph/2.0.0">
-  <sgraph:Statechart xmi:id="_nDZYsNUMEea00YxYeAT_QQ" specification="interface Car:&#xA;&#x9;var brakes_on : boolean = false&#xA;&#x9;operation start_car() : void&#xA;&#x9;operation stop_car() : void&#xA;&#xA;interface MCU:&#xA;&#x9;operation wait_for_interrupt() : void&#xA;&#xA;interface HeadLights:&#xA;&#x9;operation on() : void&#xA;&#x9;operation off() : void&#xA;&#x9;&#xA;interface TailLights:&#xA;&#x9;operation bright(): void&#xA;&#x9;operation dim() : void&#xA;&#x9;operation off() : void&#xA;&#x9;&#xA;interface HMI:&#xA;&#x9;in event button_click : void&#xA;&#x9;in event button_long_press : void" name="firmware">
+  <sgraph:Statechart xmi:id="_nDZYsNUMEea00YxYeAT_QQ" specification="interface Car:&#xA;&#x9;var brakes_on : boolean = false&#xA;&#x9;operation start_car() : void&#xA;&#x9;operation stop_car() : void&#xA;&#xA;interface MCU:&#xA;&#x9;operation wait_for_interrupt() : void&#xA;&#x9;in event error&#xA;&#x9;operation handle_error() : void&#xA;&#xA;interface HeadLights:&#xA;&#x9;operation on() : void&#xA;&#x9;operation off() : void&#xA;&#x9;&#xA;interface TailLights:&#xA;&#x9;operation bright(): void&#xA;&#x9;operation dim() : void&#xA;&#x9;operation off() : void&#xA;&#x9;&#xA;interface HMI:&#xA;&#x9;in event button_click : void&#xA;&#x9;in event button_long_press : void" name="firmware">
     <regions xmi:id="_nDxMItUMEea00YxYeAT_QQ" name="main region">
       <vertices xsi:type="sgraph:Entry" xmi:id="_nEEuINUMEea00YxYeAT_QQ">
         <outgoingTransitions xmi:id="_nEK0wNUMEea00YxYeAT_QQ" target="_nEGjUNUMEea00YxYeAT_QQ"/>
       </vertices>
-      <vertices xsi:type="sgraph:State" xmi:id="_nEGjUNUMEea00YxYeAT_QQ" specification="entry/ TailLights.off()&#xA;entry/ HeadLights.off()&#xA;oncycle/ MCU.wait_for_interrupt()" name="idle" incomingTransitions="_nEK0wNUMEea00YxYeAT_QQ _ycOKwNUPEea00YxYeAT_QQ">
+      <vertices xsi:type="sgraph:State" xmi:id="_nEGjUNUMEea00YxYeAT_QQ" specification="oncycle/ MCU.wait_for_interrupt()" name="idle" incomingTransitions="_nEK0wNUMEea00YxYeAT_QQ _ycOKwNUPEea00YxYeAT_QQ _R_b10NYAEea12LFRB5STwg">
         <outgoingTransitions xmi:id="_3aCP8NUMEea00YxYeAT_QQ" specification="HMI.button_click" target="_07fJ4NUMEea00YxYeAT_QQ"/>
       </vertices>
       <vertices xsi:type="sgraph:State" xmi:id="_07fJ4NUMEea00YxYeAT_QQ" specification="entry/ Car.start_car()&#xA;oncycle/ MCU.wait_for_interrupt()&#xA;exit/ Car.stop_car()" name="running" incomingTransitions="_3aCP8NUMEea00YxYeAT_QQ">
         <outgoingTransitions xmi:id="_ycOKwNUPEea00YxYeAT_QQ" specification="HMI.button_long_press" target="_nEGjUNUMEea00YxYeAT_QQ"/>
+        <outgoingTransitions xmi:id="_W1AdoNYAEea12LFRB5STwg" specification="MCU.error" target="_PlnewNYAEea12LFRB5STwg"/>
         <regions xmi:id="_EAA5ANUNEea00YxYeAT_QQ" name="headlights">
           <vertices xsi:type="sgraph:State" xmi:id="_HhNu4NUNEea00YxYeAT_QQ" specification="entry/ HeadLights.on()" name="on" incomingTransitions="_O1SZcNUNEea00YxYeAT_QQ _uSuQsNUNEea00YxYeAT_QQ">
             <outgoingTransitions xmi:id="_Lc3sINUNEea00YxYeAT_QQ" specification="HMI.button_click" target="_KJYD8NUNEea00YxYeAT_QQ"/>
@@ -22,16 +23,19 @@
           </vertices>
         </regions>
         <regions xmi:id="_EaqNoNUNEea00YxYeAT_QQ" name="taillights">
-          <vertices xsi:type="sgraph:State" xmi:id="_5tXSkNUOEea00YxYeAT_QQ" name="brakes_on" incomingTransitions="_i-7WUNUPEea00YxYeAT_QQ">
+          <vertices xsi:type="sgraph:State" xmi:id="_5tXSkNUOEea00YxYeAT_QQ" specification="entry/ TailLights.bright()" name="brakes_on" incomingTransitions="_i-7WUNUPEea00YxYeAT_QQ">
             <outgoingTransitions xmi:id="_lZbC0NUPEea00YxYeAT_QQ" specification="[!Car.brakes_on]" target="_cSfTgNUPEea00YxYeAT_QQ"/>
           </vertices>
-          <vertices xsi:type="sgraph:State" xmi:id="_cSfTgNUPEea00YxYeAT_QQ" name="brakes_off" incomingTransitions="_d7i8ANUPEea00YxYeAT_QQ _lZbC0NUPEea00YxYeAT_QQ">
+          <vertices xsi:type="sgraph:State" xmi:id="_cSfTgNUPEea00YxYeAT_QQ" specification="entry/ TailLights.dim()" name="brakes_off" incomingTransitions="_d7i8ANUPEea00YxYeAT_QQ _lZbC0NUPEea00YxYeAT_QQ">
             <outgoingTransitions xmi:id="_i-7WUNUPEea00YxYeAT_QQ" specification="[Car.brakes_on]" target="_5tXSkNUOEea00YxYeAT_QQ"/>
           </vertices>
           <vertices xsi:type="sgraph:Entry" xmi:id="_dP-PcNUPEea00YxYeAT_QQ">
             <outgoingTransitions xmi:id="_d7i8ANUPEea00YxYeAT_QQ" specification="" target="_cSfTgNUPEea00YxYeAT_QQ"/>
           </vertices>
         </regions>
+      </vertices>
+      <vertices xsi:type="sgraph:State" xmi:id="_PlnewNYAEea12LFRB5STwg" specification="entry/ MCU.handle_error() " name="error" incomingTransitions="_W1AdoNYAEea12LFRB5STwg">
+        <outgoingTransitions xmi:id="_R_b10NYAEea12LFRB5STwg" specification="always" target="_nEGjUNUMEea00YxYeAT_QQ"/>
       </vertices>
     </regions>
   </sgraph:Statechart>
@@ -200,6 +204,22 @@
           <styles xsi:type="notation:BooleanValueStyle" xmi:id="_07hmI9UMEea00YxYeAT_QQ" name="isHorizontal" booleanValue="true"/>
           <layoutConstraint xsi:type="notation:Bounds" xmi:id="_07g_E9UMEea00YxYeAT_QQ" x="30" y="154" width="541" height="357"/>
         </children>
+        <children xmi:id="_PmIcINYAEea12LFRB5STwg" type="State" element="_PlnewNYAEea12LFRB5STwg">
+          <children xsi:type="notation:DecorationNode" xmi:id="_PmJqQNYAEea12LFRB5STwg" type="StateName">
+            <styles xsi:type="notation:ShapeStyle" xmi:id="_PmJqQdYAEea12LFRB5STwg"/>
+            <layoutConstraint xsi:type="notation:Location" xmi:id="_PmJqQtYAEea12LFRB5STwg"/>
+          </children>
+          <children xsi:type="notation:Compartment" xmi:id="_PmKRUNYAEea12LFRB5STwg" type="StateTextCompartment">
+            <children xsi:type="notation:Shape" xmi:id="_PmKRUdYAEea12LFRB5STwg" type="StateTextCompartmentExpression" fontName="Verdana" lineColor="4210752">
+              <layoutConstraint xsi:type="notation:Bounds" xmi:id="_PmKRUtYAEea12LFRB5STwg"/>
+            </children>
+          </children>
+          <children xsi:type="notation:Compartment" xmi:id="_PmK4YNYAEea12LFRB5STwg" type="StateFigureCompartment"/>
+          <styles xsi:type="notation:ShapeStyle" xmi:id="_PmIcIdYAEea12LFRB5STwg" fontName="Verdana" fillColor="15981773" lineColor="12632256"/>
+          <styles xsi:type="notation:FontStyle" xmi:id="_PmIcItYAEea12LFRB5STwg"/>
+          <styles xsi:type="notation:BooleanValueStyle" xmi:id="_PmK4YdYAEea12LFRB5STwg" name="isHorizontal" booleanValue="true"/>
+          <layoutConstraint xsi:type="notation:Bounds" xmi:id="_PmIcI9YAEea12LFRB5STwg" x="391" y="10"/>
+        </children>
         <layoutConstraint xsi:type="notation:Bounds" xmi:id="_nEDgAdUMEea00YxYeAT_QQ"/>
       </children>
       <styles xsi:type="notation:ShapeStyle" xmi:id="_nD2EodUMEea00YxYeAT_QQ" fontName="Verdana" fillColor="15790320" lineColor="12632256"/>
@@ -296,7 +316,7 @@
       </children>
       <styles xsi:type="notation:ConnectorStyle" xmi:id="_lZbp4dUPEea00YxYeAT_QQ" lineColor="4210752"/>
       <styles xsi:type="notation:FontStyle" xmi:id="_lZbp49UPEea00YxYeAT_QQ" fontName="Verdana"/>
-      <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_lZbp4tUPEea00YxYeAT_QQ" points="[3, 6, 30, 114]$[65, 6, 92, 114]$[65, -114, 92, -6]$[4, -114, 31, -6]"/>
+      <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_lZbp4tUPEea00YxYeAT_QQ" points="[7, 0, 73, 108]$[70, 0, 136, 108]$[70, -108, 136, 0]$[-5, -108, 61, 0]"/>
       <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_lZc4ANUPEea00YxYeAT_QQ" id="(0.9538461538461539,0.5094339622641509)"/>
     </edges>
     <edges xmi:id="_ycOx0NUPEea00YxYeAT_QQ" type="Transition" element="_ycOKwNUPEea00YxYeAT_QQ" source="_07g_ENUMEea00YxYeAT_QQ" target="_nEIYgNUMEea00YxYeAT_QQ">
@@ -309,6 +329,28 @@
       <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_ycOx0tUPEea00YxYeAT_QQ" points="[0, -2, 171, 68]$[0, -70, 171, 0]$[-143, -70, 28, 0]"/>
       <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_ycP_8NUPEea00YxYeAT_QQ" id="(0.8217391304347826,0.008403361344537815)"/>
       <targetAnchor xsi:type="notation:IdentityAnchor" xmi:id="_ycP_8dUPEea00YxYeAT_QQ" id="(0.8808510638297873,0.6376811594202898)"/>
+    </edges>
+    <edges xmi:id="_R_drANYAEea12LFRB5STwg" type="Transition" element="_R_b10NYAEea12LFRB5STwg" source="_PmIcINYAEea12LFRB5STwg" target="_nEIYgNUMEea00YxYeAT_QQ">
+      <children xsi:type="notation:DecorationNode" xmi:id="_R_drBNYAEea12LFRB5STwg" type="TransitionExpression">
+        <styles xsi:type="notation:ShapeStyle" xmi:id="_R_drBdYAEea12LFRB5STwg"/>
+        <layoutConstraint xsi:type="notation:Location" xmi:id="_R_drBtYAEea12LFRB5STwg" y="10"/>
+      </children>
+      <styles xsi:type="notation:ConnectorStyle" xmi:id="_R_drAdYAEea12LFRB5STwg" lineColor="4210752"/>
+      <styles xsi:type="notation:FontStyle" xmi:id="_R_drA9YAEea12LFRB5STwg" fontName="Verdana"/>
+      <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_R_drAtYAEea12LFRB5STwg" points="[-144, 9, 146, -31]$[-261, 9, 29, -31]$[-286, 36, 4, -4]"/>
+      <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_R_fgMNYAEea12LFRB5STwg" id="(1.0,0.0)"/>
+      <targetAnchor xsi:type="notation:IdentityAnchor" xmi:id="_R_fgMdYAEea12LFRB5STwg" id="(0.9361702127659575,0.07246376811594203)"/>
+    </edges>
+    <edges xmi:id="_W1CS0NYAEea12LFRB5STwg" type="Transition" element="_W1AdoNYAEea12LFRB5STwg" source="_07g_ENUMEea00YxYeAT_QQ" target="_PmIcINYAEea12LFRB5STwg">
+      <children xsi:type="notation:DecorationNode" xmi:id="_W1CS1NYAEea12LFRB5STwg" type="TransitionExpression">
+        <styles xsi:type="notation:ShapeStyle" xmi:id="_W1CS1dYAEea12LFRB5STwg"/>
+        <layoutConstraint xsi:type="notation:Location" xmi:id="_W1CS1tYAEea12LFRB5STwg" x="-36" y="28"/>
+      </children>
+      <styles xsi:type="notation:ConnectorStyle" xmi:id="_W1CS0dYAEea12LFRB5STwg" lineColor="4210752"/>
+      <styles xsi:type="notation:FontStyle" xmi:id="_W1CS09YAEea12LFRB5STwg" fontName="Verdana"/>
+      <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_W1CS0tYAEea12LFRB5STwg" points="[-1, -1, 131, 107]$[-43, -108, 89, 0]$[-107, -108, 25, 0]"/>
+      <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_W1Dg8NYAEea12LFRB5STwg" id="(0.8909426987060998,0.0028011204481792717)"/>
+      <targetAnchor xsi:type="notation:IdentityAnchor" xmi:id="_W1Dg8dYAEea12LFRB5STwg" id="(0.785234899328859,0.9245283018867925)"/>
     </edges>
   </notation:Diagram>
 </xmi:XMI>

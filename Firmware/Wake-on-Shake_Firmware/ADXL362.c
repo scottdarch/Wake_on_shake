@@ -40,9 +40,18 @@ void ADXLConfig(void)
     //   Needs to be set to activity mode (4 = 1)
     //   Other bits must be zero.
     ADXLWriteByte((uint8_t)XL362_INTMAP1, (uint8_t)0b10010000);
+}
 
+void ADXLEnable(void)
+{
     // Autosleep with ultra-low-noise.
     ADXLWriteByte((uint8_t)XL362_POWER_CTL, (uint8_t)0x26);
+}
+
+void ADXLDisable(void)
+{
+    // Standby
+    ADXLWriteByte((uint8_t)XL362_POWER_CTL, (uint8_t)0x00);
 }
 
 // Simple functions to assert chip select and copy data in and out of the
@@ -66,10 +75,9 @@ void ADXLWriteByte(uint8_t addr, uint8_t data)
     PORTB |= (1 << PB4);
 }
 
-bool ADXLIsAwake(void)
+uint8_t ADXLGetStatus(void)
 {
-    const uint8_t status = ADXLReadByte(XL362_STATUS);
-    return ((0x40 & status) != 0);
+    return ADXLReadByte(XL362_STATUS);
 }
 
 uint8_t ADXLReadXMSB(void)

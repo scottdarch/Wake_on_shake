@@ -16,6 +16,7 @@ This state machine makes use of operations declared in the state machines interf
 	- firmwareIfaceCar_start_car
 	- firmwareIfaceCar_stop_car
 	- firmwareIfaceMCU_wait_for_interrupt
+	- firmwareIfaceMCU_handle_error
 	- firmwareIfaceHeadLights_on
 	- firmwareIfaceHeadLights_off
 	- firmwareIfaceTailLights_bright
@@ -33,6 +34,7 @@ extern void firmwareIfaceCar_start_car(const Firmware* handle);
 extern void firmwareIfaceCar_stop_car(const Firmware* handle);
 
 extern void firmwareIfaceMCU_wait_for_interrupt(const Firmware* handle);
+extern void firmwareIfaceMCU_handle_error(const Firmware* handle);
 
 extern void firmwareIfaceHeadLights_on(const Firmware* handle);
 extern void firmwareIfaceHeadLights_off(const Firmware* handle);

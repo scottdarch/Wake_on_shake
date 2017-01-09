@@ -9,25 +9,31 @@
 
 /* prototypes of all internal functions */
 static sc_boolean firmware_check_main_region_idle_tr0_tr0(const Firmware* handle);
-static sc_boolean firmware_check_main_region_idle_lr2_lr2(const Firmware* handle);
+static sc_boolean firmware_check_main_region_idle_lr0_lr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_tr0_tr0(const Firmware* handle);
+static sc_boolean firmware_check_main_region_running_tr1_tr1(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_lr1_lr1(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_headlights_on_tr0_tr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_headlights_off_tr0_tr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_taillights_brakes_on_tr0_tr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_taillights_brakes_off_tr0_tr0(const Firmware* handle);
+static sc_boolean firmware_check_main_region_error_tr0_tr0(const Firmware* handle);
 static void firmware_effect_main_region_idle_tr0(Firmware* handle);
-static void firmware_effect_main_region_idle_lr2_lr2(Firmware* handle);
+static void firmware_effect_main_region_idle_lr0_lr0(Firmware* handle);
 static void firmware_effect_main_region_running_tr0(Firmware* handle);
+static void firmware_effect_main_region_running_tr1(Firmware* handle);
 static void firmware_effect_main_region_running_lr1_lr1(Firmware* handle);
 static void firmware_effect_main_region_running_headlights_on_tr0(Firmware* handle);
 static void firmware_effect_main_region_running_headlights_off_tr0(Firmware* handle);
 static void firmware_effect_main_region_running_taillights_brakes_on_tr0(Firmware* handle);
 static void firmware_effect_main_region_running_taillights_brakes_off_tr0(Firmware* handle);
-static void firmware_enact_main_region_idle(Firmware* handle);
+static void firmware_effect_main_region_error_tr0(Firmware* handle);
 static void firmware_enact_main_region_running(Firmware* handle);
 static void firmware_enact_main_region_running_headlights_on(Firmware* handle);
 static void firmware_enact_main_region_running_headlights_off(Firmware* handle);
+static void firmware_enact_main_region_running_taillights_brakes_on(Firmware* handle);
+static void firmware_enact_main_region_running_taillights_brakes_off(Firmware* handle);
+static void firmware_enact_main_region_error(Firmware* handle);
 static void firmware_exact_main_region_running(Firmware* handle);
 static void firmware_enseq_main_region_idle_default(Firmware* handle);
 static void firmware_enseq_main_region_running_default(Firmware* handle);
@@ -35,6 +41,7 @@ static void firmware_enseq_main_region_running_headlights_on_default(Firmware* h
 static void firmware_enseq_main_region_running_headlights_off_default(Firmware* handle);
 static void firmware_enseq_main_region_running_taillights_brakes_on_default(Firmware* handle);
 static void firmware_enseq_main_region_running_taillights_brakes_off_default(Firmware* handle);
+static void firmware_enseq_main_region_error_default(Firmware* handle);
 static void firmware_enseq_main_region_default(Firmware* handle);
 static void firmware_enseq_main_region_running_headlights_default(Firmware* handle);
 static void firmware_shenseq_main_region_running_headlights(Firmware* handle);
@@ -45,6 +52,7 @@ static void firmware_exseq_main_region_running_headlights_on(Firmware* handle);
 static void firmware_exseq_main_region_running_headlights_off(Firmware* handle);
 static void firmware_exseq_main_region_running_taillights_brakes_on(Firmware* handle);
 static void firmware_exseq_main_region_running_taillights_brakes_off(Firmware* handle);
+static void firmware_exseq_main_region_error(Firmware* handle);
 static void firmware_exseq_main_region(Firmware* handle);
 static void firmware_exseq_main_region_running_headlights(Firmware* handle);
 static void firmware_exseq_main_region_running_taillights(Firmware* handle);
@@ -53,6 +61,7 @@ static void firmware_react_main_region_running_headlights_on(Firmware* handle);
 static void firmware_react_main_region_running_headlights_off(Firmware* handle);
 static void firmware_react_main_region_running_taillights_brakes_on(Firmware* handle);
 static void firmware_react_main_region_running_taillights_brakes_off(Firmware* handle);
+static void firmware_react_main_region_error(Firmware* handle);
 static void firmware_react_main_region__entry_Default(Firmware* handle);
 static void firmware_react_main_region_running_headlights__entry_Default(Firmware* handle);
 static void firmware_react_main_region_running_taillights__entry_Default(Firmware* handle);
@@ -120,6 +129,7 @@ sc_boolean firmware_isFinal(const Firmware* handle)
 
 static void firmware_clearInEvents(Firmware* handle)
 {
+	handle->ifaceMCU.error_raised = bool_false;
 	handle->ifaceHMI.button_click_raised = bool_false;
 	handle->ifaceHMI.button_long_press_raised = bool_false;
 }
@@ -165,6 +175,11 @@ void firmware_runCycle(Firmware* handle)
 			firmware_react_main_region_running_taillights_brakes_off(handle);
 			break;
 		}
+		case Firmware_main_region_error :
+		{
+			firmware_react_main_region_error(handle);
+			break;
+		}
 		default:
 			break;
 		}
@@ -203,6 +218,10 @@ sc_boolean firmware_isStateActive(const Firmware* handle, FirmwareStates state)
 			result = (sc_boolean) (handle->stateConfVector[1] == Firmware_main_region_running_taillights_brakes_off
 			);
 			break;
+		case Firmware_main_region_error :
+			result = (sc_boolean) (handle->stateConfVector[0] == Firmware_main_region_error
+			);
+			break;
 		default:
 			result = bool_false;
 			break;
@@ -219,6 +238,10 @@ sc_boolean firmwareIfaceCar_get_brakes_on(const Firmware* handle)
 void firmwareIfaceCar_set_brakes_on(Firmware* handle, sc_boolean value)
 {
 	handle->ifaceCar.brakes_on = value;
+}
+void firmwareIfaceMCU_raise_error(Firmware* handle)
+{
+	handle->ifaceMCU.error_raised = bool_true;
 }
 
 
@@ -244,7 +267,7 @@ static sc_boolean firmware_check_main_region_idle_tr0_tr0(const Firmware* handle
 	return handle->ifaceHMI.button_click_raised;
 }
 
-static sc_boolean firmware_check_main_region_idle_lr2_lr2(const Firmware* handle)
+static sc_boolean firmware_check_main_region_idle_lr0_lr0(const Firmware* handle)
 {
 	return bool_true;
 }
@@ -252,6 +275,11 @@ static sc_boolean firmware_check_main_region_idle_lr2_lr2(const Firmware* handle
 static sc_boolean firmware_check_main_region_running_tr0_tr0(const Firmware* handle)
 {
 	return handle->ifaceHMI.button_long_press_raised;
+}
+
+static sc_boolean firmware_check_main_region_running_tr1_tr1(const Firmware* handle)
+{
+	return handle->ifaceMCU.error_raised;
 }
 
 static sc_boolean firmware_check_main_region_running_lr1_lr1(const Firmware* handle)
@@ -279,13 +307,18 @@ static sc_boolean firmware_check_main_region_running_taillights_brakes_off_tr0_t
 	return handle->ifaceCar.brakes_on;
 }
 
+static sc_boolean firmware_check_main_region_error_tr0_tr0(const Firmware* handle)
+{
+	return bool_true;
+}
+
 static void firmware_effect_main_region_idle_tr0(Firmware* handle)
 {
 	firmware_exseq_main_region_idle(handle);
 	firmware_enseq_main_region_running_default(handle);
 }
 
-static void firmware_effect_main_region_idle_lr2_lr2(Firmware* handle)
+static void firmware_effect_main_region_idle_lr0_lr0(Firmware* handle)
 {
 	firmwareIfaceMCU_wait_for_interrupt(handle);
 }
@@ -294,6 +327,12 @@ static void firmware_effect_main_region_running_tr0(Firmware* handle)
 {
 	firmware_exseq_main_region_running(handle);
 	firmware_enseq_main_region_idle_default(handle);
+}
+
+static void firmware_effect_main_region_running_tr1(Firmware* handle)
+{
+	firmware_exseq_main_region_running(handle);
+	firmware_enseq_main_region_error_default(handle);
 }
 
 static void firmware_effect_main_region_running_lr1_lr1(Firmware* handle)
@@ -325,12 +364,10 @@ static void firmware_effect_main_region_running_taillights_brakes_off_tr0(Firmwa
 	firmware_enseq_main_region_running_taillights_brakes_on_default(handle);
 }
 
-/* Entry action for state 'idle'. */
-static void firmware_enact_main_region_idle(Firmware* handle)
+static void firmware_effect_main_region_error_tr0(Firmware* handle)
 {
-	/* Entry action for state 'idle'. */
-	firmwareIfaceTailLights_off(handle);
-	firmwareIfaceHeadLights_off(handle);
+	firmware_exseq_main_region_error(handle);
+	firmware_enseq_main_region_idle_default(handle);
 }
 
 /* Entry action for state 'running'. */
@@ -354,6 +391,27 @@ static void firmware_enact_main_region_running_headlights_off(Firmware* handle)
 	firmwareIfaceHeadLights_off(handle);
 }
 
+/* Entry action for state 'brakes_on'. */
+static void firmware_enact_main_region_running_taillights_brakes_on(Firmware* handle)
+{
+	/* Entry action for state 'brakes_on'. */
+	firmwareIfaceTailLights_bright(handle);
+}
+
+/* Entry action for state 'brakes_off'. */
+static void firmware_enact_main_region_running_taillights_brakes_off(Firmware* handle)
+{
+	/* Entry action for state 'brakes_off'. */
+	firmwareIfaceTailLights_dim(handle);
+}
+
+/* Entry action for state 'error'. */
+static void firmware_enact_main_region_error(Firmware* handle)
+{
+	/* Entry action for state 'error'. */
+	firmwareIfaceMCU_handle_error(handle);
+}
+
 /* Exit action for state 'running'. */
 static void firmware_exact_main_region_running(Firmware* handle)
 {
@@ -365,7 +423,6 @@ static void firmware_exact_main_region_running(Firmware* handle)
 static void firmware_enseq_main_region_idle_default(Firmware* handle)
 {
 	/* 'default' enter sequence for state idle */
-	firmware_enact_main_region_idle(handle);
 	handle->stateConfVector[0] = Firmware_main_region_idle;
 	handle->stateConfVectorPosition = 0;
 }
@@ -403,6 +460,7 @@ static void firmware_enseq_main_region_running_headlights_off_default(Firmware* 
 static void firmware_enseq_main_region_running_taillights_brakes_on_default(Firmware* handle)
 {
 	/* 'default' enter sequence for state brakes_on */
+	firmware_enact_main_region_running_taillights_brakes_on(handle);
 	handle->stateConfVector[1] = Firmware_main_region_running_taillights_brakes_on;
 	handle->stateConfVectorPosition = 1;
 }
@@ -411,8 +469,18 @@ static void firmware_enseq_main_region_running_taillights_brakes_on_default(Firm
 static void firmware_enseq_main_region_running_taillights_brakes_off_default(Firmware* handle)
 {
 	/* 'default' enter sequence for state brakes_off */
+	firmware_enact_main_region_running_taillights_brakes_off(handle);
 	handle->stateConfVector[1] = Firmware_main_region_running_taillights_brakes_off;
 	handle->stateConfVectorPosition = 1;
+}
+
+/* 'default' enter sequence for state error */
+static void firmware_enseq_main_region_error_default(Firmware* handle)
+{
+	/* 'default' enter sequence for state error */
+	firmware_enact_main_region_error(handle);
+	handle->stateConfVector[0] = Firmware_main_region_error;
+	handle->stateConfVectorPosition = 0;
 }
 
 /* 'default' enter sequence for region main region */
@@ -506,6 +574,14 @@ static void firmware_exseq_main_region_running_taillights_brakes_off(Firmware* h
 	handle->stateConfVectorPosition = 1;
 }
 
+/* Default exit sequence for state error */
+static void firmware_exseq_main_region_error(Firmware* handle)
+{
+	/* Default exit sequence for state error */
+	handle->stateConfVector[0] = Firmware_last_state;
+	handle->stateConfVectorPosition = 0;
+}
+
 /* Default exit sequence for region main region */
 static void firmware_exseq_main_region(Firmware* handle)
 {
@@ -526,6 +602,11 @@ static void firmware_exseq_main_region(Firmware* handle)
 		case Firmware_main_region_running_headlights_off :
 		{
 			firmware_exseq_main_region_running_headlights_off(handle);
+			break;
+		}
+		case Firmware_main_region_error :
+		{
+			firmware_exseq_main_region_error(handle);
 			break;
 		}
 		default: break;
@@ -600,7 +681,7 @@ static void firmware_react_main_region_idle(Firmware* handle)
 		firmware_effect_main_region_idle_tr0(handle);
 	}  else
 	{
-		firmware_effect_main_region_idle_lr2_lr2(handle);
+		firmware_effect_main_region_idle_lr0_lr0(handle);
 	}
 }
 
@@ -613,11 +694,17 @@ static void firmware_react_main_region_running_headlights_on(Firmware* handle)
 		firmware_effect_main_region_running_tr0(handle);
 	}  else
 	{
-		firmware_effect_main_region_running_lr1_lr1(handle);
-		if (firmware_check_main_region_running_headlights_on_tr0_tr0(handle) == bool_true)
+		if (firmware_check_main_region_running_tr1_tr1(handle) == bool_true)
 		{ 
-			firmware_effect_main_region_running_headlights_on_tr0(handle);
-		} 
+			firmware_effect_main_region_running_tr1(handle);
+		}  else
+		{
+			firmware_effect_main_region_running_lr1_lr1(handle);
+			if (firmware_check_main_region_running_headlights_on_tr0_tr0(handle) == bool_true)
+			{ 
+				firmware_effect_main_region_running_headlights_on_tr0(handle);
+			} 
+		}
 	}
 }
 
@@ -630,11 +717,17 @@ static void firmware_react_main_region_running_headlights_off(Firmware* handle)
 		firmware_effect_main_region_running_tr0(handle);
 	}  else
 	{
-		firmware_effect_main_region_running_lr1_lr1(handle);
-		if (firmware_check_main_region_running_headlights_off_tr0_tr0(handle) == bool_true)
+		if (firmware_check_main_region_running_tr1_tr1(handle) == bool_true)
 		{ 
-			firmware_effect_main_region_running_headlights_off_tr0(handle);
-		} 
+			firmware_effect_main_region_running_tr1(handle);
+		}  else
+		{
+			firmware_effect_main_region_running_lr1_lr1(handle);
+			if (firmware_check_main_region_running_headlights_off_tr0_tr0(handle) == bool_true)
+			{ 
+				firmware_effect_main_region_running_headlights_off_tr0(handle);
+			} 
+		}
 	}
 }
 
@@ -656,6 +749,13 @@ static void firmware_react_main_region_running_taillights_brakes_off(Firmware* h
 	{ 
 		firmware_effect_main_region_running_taillights_brakes_off_tr0(handle);
 	} 
+}
+
+/* The reactions of state error. */
+static void firmware_react_main_region_error(Firmware* handle)
+{
+	/* The reactions of state error. */
+	firmware_effect_main_region_error_tr0(handle);
 }
 
 /* Default react sequence for initial entry  */

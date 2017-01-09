@@ -20,6 +20,7 @@ typedef enum
 	Firmware_main_region_running_headlights_off,
 	Firmware_main_region_running_taillights_brakes_on,
 	Firmware_main_region_running_taillights_brakes_off,
+	Firmware_main_region_error,
 	Firmware_last_state
 } FirmwareStates;
 
@@ -28,6 +29,12 @@ typedef struct
 {
 	sc_boolean brakes_on;
 } FirmwareIfaceCar;
+
+/*! Type definition of the data structure for the FirmwareIfaceMCU interface scope. */
+typedef struct
+{
+	sc_boolean error_raised;
+} FirmwareIfaceMCU;
 
 /*! Type definition of the data structure for the FirmwareIfaceHMI interface scope. */
 typedef struct
@@ -53,6 +60,7 @@ typedef struct
 	sc_ushort stateConfVectorPosition; 
 	
 	FirmwareIfaceCar ifaceCar;
+	FirmwareIfaceMCU ifaceMCU;
 	FirmwareIfaceHMI ifaceHMI;
 } Firmware;
 
@@ -73,6 +81,9 @@ extern void firmware_runCycle(Firmware* handle);
 extern sc_boolean firmwareIfaceCar_get_brakes_on(const Firmware* handle);
 /*! Sets the value of the variable 'brakes_on' that is defined in the interface scope 'Car'. */ 
 extern void firmwareIfaceCar_set_brakes_on(Firmware* handle, sc_boolean value);
+/*! Raises the in event 'error' that is defined in the interface scope 'MCU'. */ 
+extern void firmwareIfaceMCU_raise_error(Firmware* handle);
+
 /*! Raises the in event 'button_click' that is defined in the interface scope 'HMI'. */ 
 extern void firmwareIfaceHMI_raise_button_click(Firmware* handle);
 

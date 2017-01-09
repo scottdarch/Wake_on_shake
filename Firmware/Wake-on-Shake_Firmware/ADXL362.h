@@ -27,7 +27,11 @@ void ADXLConfig(void);                // Set up all the necessary values
                                       //   mode we need for this product,
                                       //   including user set variables.
 
-bool ADXLIsAwake(void);
+void ADXLEnable(void);
+
+void ADXLDisable(void);
+
+uint8_t ADXLGetStatus(void);
 
 uint8_t ADXLReadXMSB(void);
 

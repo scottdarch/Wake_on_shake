@@ -128,6 +128,7 @@
 #define XL362_INT_INACT 0x20
 #define XL362_INT_AWAKE 0x40
 #define XL362_INT_LOW 0x80
+#define XL362_STATUS_ERR 0x80
 
 /* Bit values in FILTER_CTL  (8 bits allocated)                            */
 #define XL362_RATE_400 0x05

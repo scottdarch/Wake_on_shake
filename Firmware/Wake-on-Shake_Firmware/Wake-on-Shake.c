@@ -37,7 +37,6 @@ brake lights.
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include <avr/cpufunc.h>
-#include "serial.h"
 #include "wake-on-shake.h"
 #include "interrupts.h"
 #include "spi.h"
@@ -71,7 +70,12 @@ static void taillights_dim(void)
 
 static void taillights_off(void)
 {
-    // TODO:
+    PORTB &= ~((1 << PB3) | (1 << PB2));
+}
+
+static void taillights_on(void)
+{
+    PORTB |= ((1 << PB3) | (1 << PB2));
 }
 
 static void headlights_on(void)
@@ -81,7 +85,7 @@ static void headlights_on(void)
 
 static void headlights_off(void)
 {
-    PORTD &= !(1 << PD4);
+    PORTD &= ~(1 << PD4);
 }
 
 // +---------------------------------------------------------------------------+
@@ -95,23 +99,28 @@ static Firmware _sc_firmware;
 // +---------------------------------------------------------------------------+
 #define BUTTON_DOWN_MASK 0xFFF
 #define BUTTON_LONG_PRESS_MASK 0xFFFFFFFF
+#define BUTTON_LONG_PRESS_COUNT 8
+#define BUTTON_PORT PIND
+#define BUTTON_PIN PIND0
 
 static uint16_t _button_state = 0;
 static uint32_t _long_click_state = 0;
+static uint32_t _long_click_count = 0;
 static bool _is_button_down = false;
 static bool _is_button_long_pressed = false;
 
 static void _update_button_state(void)
 {
-    _button_state = (_button_state << 1) | (PINB & (1 << PINB0)) ? 1 : 0;
+    _button_state = (_button_state << 1) | (uint16_t)((BUTTON_PORT & (1 << BUTTON_PIN)) ? 0 : 1);
     if (!_is_button_down && (_button_state & BUTTON_DOWN_MASK) == BUTTON_DOWN_MASK) {
         _is_button_down = true;
     } else if (_is_button_down) {
         if ((_button_state & BUTTON_DOWN_MASK) == 0) {
             // button is now up.
             _is_button_down = false;
+            _long_click_count = 0;
+            _long_click_state = 0;
             if (!_is_button_long_pressed) {
-                serialWrite("click");
                 firmwareIfaceHMI_raise_button_click(&_sc_firmware);
             } else {
                 _is_button_long_pressed = false;
@@ -119,9 +128,12 @@ static void _update_button_state(void)
         } else if (!_is_button_long_pressed) {
             _long_click_state = (_long_click_state << 1) | 1;
             if ((_long_click_state & BUTTON_LONG_PRESS_MASK) == BUTTON_LONG_PRESS_MASK) {
-                _is_button_long_pressed = true;
-                serialWrite("long-press");
-                firmwareIfaceHMI_raise_button_long_press(&_sc_firmware);
+                ++_long_click_count;
+                _long_click_state = 0;
+                if (_long_click_count == BUTTON_LONG_PRESS_COUNT) {
+                    _is_button_long_pressed = true;
+                    firmwareIfaceHMI_raise_button_long_press(&_sc_firmware);
+                }
             }
         }
     }
@@ -160,12 +172,26 @@ static void setup_gpio(void)
 
     // Port B- PB1-3 should be low for power consumption; PB4 is !CS, so bring it
     //   high to keep the ADXL362 non-selected. Others are don't care.
-    PORTB = (1 << PB4) | (0 << PB3) | (0 << PB2) | (0 << PB1);
+    PORTB = (1 << PB4) | (0 << PB3) | (0 << PB2) | (0 << PB1) | (1 << PB0);
 
     // Port D- PD5 and PD6 should be tied low; others are (for now) don't care.
     //   Also, PD2/PD0 should be made high to enable pullup resistor for when no
     //   serial connection is present.
     PORTD = (1 << PD6) | (1 << PD5) | (1 << PD2) | (1 << PD0);
+}
+
+static void start_timers(void)
+{
+    TCCR0B |= (1 << CS01);
+    TCCR1B |= (1 << CS11);
+    _NOP();
+}
+
+static void stop_timers(void)
+{
+    TCCR0B &= ~((1 << CS02) | (1 << CS01) | (1 << CS00));
+    TCCR1B &= ~((1 << CS12) | (1 << CS11) | (1 << CS10));
+    _NOP();
 }
 
 static void setup_timers(void)
@@ -176,10 +202,9 @@ static void setup_timers(void)
 
     // Using fast PWM
     TCCR0A = (1 << COM0A1) | (1 << WGM01) | (1 << WGM00);
-    TCCR0B = (1 << CS01);
 
     TCCR1A = (1 << COM1A1) | (1 << WGM10);
-    TCCR1B = (1 << WGM12) | (1 << CS11);
+    TCCR1B = (1 << WGM12);
     OCR1AH = 0;
 }
 
@@ -189,7 +214,7 @@ void _init_MCU(void)
 {
     setup_gpio();
     setup_interrupts();
-    setup_usi();
+    // setup_usi();
     setup_timers();
     set_sleep_mode(SLEEP_MODE_IDLE);
 }
@@ -199,7 +224,6 @@ void _init_peripherals(void) __attribute__((naked)) __attribute__((section(".ini
 void _init_peripherals(void)
 {
     ADXLConfig();
-    serialWrite("periph. init");
 
     firmware_init(&_sc_firmware);
 }
@@ -211,13 +235,20 @@ int main(void)
 {
     firmware_enter(&_sc_firmware);
 
-    serialWrite("ready");
+    // serialWrite("ready");
 
     sei();
 
     while (1) {
         _update_button_state();
-        firmwareIfaceCar_set_brakes_on(&_sc_firmware, !ADXLIsAwake());
+        const uint8_t status = ADXLGetStatus();
+        if (status & XL362_STATUS_ERR) {
+            firmwareIfaceMCU_raise_error(&_sc_firmware);
+        } else if (status & XL362_INT_AWAKE) {
+            firmwareIfaceCar_set_brakes_on(&_sc_firmware, false);
+        } else {
+            firmwareIfaceCar_set_brakes_on(&_sc_firmware, true);
+        }
         firmware_runCycle(&_sc_firmware);
 
         // TODO: remove me
@@ -234,9 +265,21 @@ int main(void)
 // +---------------------------------------------------------------------------+
 void firmwareIfaceMCU_wait_for_interrupt(const Firmware *handle)
 {
-    enable_external_interrupts();
-    sleep_mode();
-    disable_external_interrupts();
+    if (_button_state == 0) {
+        enable_external_interrupts();
+        sleep_mode();
+    }
+}
+
+void firmwareIfaceMCU_handle_error(const Firmware *handle)
+{
+    ADXLConfig();
+    stop_timers();
+    headlights_on();
+    taillights_on();
+    for (uint32_t i = 0; i < 0xFFFFFFFF; ++i) {
+        _NOP();
+    }
 }
 
 void firmwareIfaceHeadLights_on(const Firmware *handle)
@@ -266,10 +309,16 @@ void firmwareIfaceTailLights_off(const Firmware *handle)
 
 void firmwareIfaceCar_start_car(const Firmware *handle)
 {
-    // TODO: enable ADXL
+    ADXLConfig();
+    ADXLEnable();
+    taillights_off();
+    start_timers();
 }
 
 void firmwareIfaceCar_stop_car(const Firmware *handle)
 {
-    // TODO: disable ADXL
+    ADXLDisable();
+    stop_timers();
+    taillights_off();
+    headlights_off();
 }
