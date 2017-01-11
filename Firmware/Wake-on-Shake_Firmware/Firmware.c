@@ -9,6 +9,7 @@
 
 /* prototypes of all internal functions */
 static sc_boolean firmware_check_main_region_idle_tr0_tr0(const Firmware* handle);
+static sc_boolean firmware_check_main_region_idle_tr1_tr1(const Firmware* handle);
 static sc_boolean firmware_check_main_region_idle_lr0_lr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_tr0_tr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_running_tr1_tr1(const Firmware* handle);
@@ -18,6 +19,7 @@ static sc_boolean firmware_check_main_region_running_taillights_brakes_on_tr0_tr
 static sc_boolean firmware_check_main_region_running_taillights_brakes_off_tr0_tr0(const Firmware* handle);
 static sc_boolean firmware_check_main_region_error_tr0_tr0(const Firmware* handle);
 static void firmware_effect_main_region_idle_tr0(Firmware* handle);
+static void firmware_effect_main_region_idle_tr1(Firmware* handle);
 static void firmware_effect_main_region_idle_lr0_lr0(Firmware* handle);
 static void firmware_effect_main_region_running_tr0(Firmware* handle);
 static void firmware_effect_main_region_running_tr1(Firmware* handle);
@@ -265,6 +267,11 @@ static sc_boolean firmware_check_main_region_idle_tr0_tr0(const Firmware* handle
 	return handle->ifaceHMI.button_click_raised;
 }
 
+static sc_boolean firmware_check_main_region_idle_tr1_tr1(const Firmware* handle)
+{
+	return handle->ifaceHMI.button_long_press_raised;
+}
+
 static sc_boolean firmware_check_main_region_idle_lr0_lr0(const Firmware* handle)
 {
 	return bool_true;
@@ -306,6 +313,12 @@ static sc_boolean firmware_check_main_region_error_tr0_tr0(const Firmware* handl
 }
 
 static void firmware_effect_main_region_idle_tr0(Firmware* handle)
+{
+	firmware_exseq_main_region_idle(handle);
+	firmware_enseq_main_region_running_default(handle);
+}
+
+static void firmware_effect_main_region_idle_tr1(Firmware* handle)
 {
 	firmware_exseq_main_region_idle(handle);
 	firmware_enseq_main_region_running_default(handle);
@@ -669,7 +682,13 @@ static void firmware_react_main_region_idle(Firmware* handle)
 		firmware_effect_main_region_idle_tr0(handle);
 	}  else
 	{
-		firmware_effect_main_region_idle_lr0_lr0(handle);
+		if (firmware_check_main_region_idle_tr1_tr1(handle) == bool_true)
+		{ 
+			firmware_effect_main_region_idle_tr1(handle);
+		}  else
+		{
+			firmware_effect_main_region_idle_lr0_lr0(handle);
+		}
 	}
 }
 
